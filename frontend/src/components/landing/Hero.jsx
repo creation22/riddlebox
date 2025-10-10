@@ -125,7 +125,7 @@ export default function Hero({ onGetStarted, onJoin }) {
         </div>
       </div>
 
-      {/* Removed scroll indicator */}
+     
     </section>
   );
 }

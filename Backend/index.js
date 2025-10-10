@@ -1,7 +1,7 @@
 import WebSocket, { WebSocketServer } from "ws";
 import * as dotenv from "dotenv";
 import { v4 as uuidv4 } from 'uuid';
-
+import { riddleSet } from "./Riddlebox.js";
 dotenv.config();
 
 // =======================================================
@@ -30,58 +30,27 @@ async function ensureFetch() {
   return mod.default;
 }
 
-async function getPollinationsRiddle() {
-    try {
-      const _fetch = await ensureFetch();
-      const prompt = encodeURIComponent(
-        'Give a short computer science or logic riddle. Respond ONLY in compact JSON like: {"question":"<riddle>","answer":"<one-word lowercase answer>"}'
-      );
-  
-      const resp = await _fetch(`https://text.pollinations.ai/${prompt}`, { timeout: 10000 });
-  
-      const text = await resp.text().then(t => t.trim());
-  
-      // Log the raw response from the API
-      console.log("📝 Pollinations raw response:", text);
-  
-      // Try parsing as direct JSON
-      if (text.startsWith("{") && text.endsWith("}")) {
-        const parsed = JSON.parse(text);
-        if (parsed.question && parsed.answer) {
-          return parsed;
-        }
-      }
-  
-      // Try extracting JSON from text
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) {
-        const parsed = JSON.parse(match[0]);
-        if (parsed.question && parsed.answer) {
-          return parsed;
-        }
-      }
-  
-      // Try pattern matching
-      const qMatch = text.match(/question[:\s]*["']?([^"'\n]+)["']?/i);
-      const aMatch = text.match(/answer[:\s]*["']?([^"'\n]+)["']?/i);
-      if (qMatch && aMatch) {
-        return { 
-          question: qMatch[1].trim(), 
-          answer: aMatch[1].trim().toLowerCase() 
-        };
-      }
-  
-      throw new Error("No valid JSON or parseable pattern in Pollinations output");
-  
-    } catch (err) {
-      console.log("⚠️ Pollinations fetch failed, using fallback:", err?.message || err);
-      return { 
-        question: "What has an eye but cannot see?", 
-        answer: "needle" 
-      };
-    }
+
+  // =======================================================
+// LOCAL RIDDLE PICKER
+// =======================================================
+
+function getLocalRiddle() {
+  if (!Array.isArray(riddleSet) || riddleSet.length === 0) {
+    console.warn("⚠️ Riddle set is empty or invalid. Using fallback riddle.");
+    return { question: "What has an eye but cannot see?", answer: "needle" };
   }
+
+  const randomIndex = Math.floor(Math.random() * riddleSet.length);
+  const selected = riddleSet[randomIndex];
   
+  // Sanitize to prevent malformed data
+  return {
+    question: sanitizeString(selected.question, 300),
+    answer: sanitizeString(selected.answer, 100).toLowerCase()
+  };
+}
+
 
 // =======================================================
 // GAME STATE CLASSES
@@ -284,7 +253,7 @@ class Room {
       return;
     }
 
-    const riddle = await getPollinationsRiddle();
+    const riddle = getLocalRiddle();
     this.currentRiddle = riddle;
     this.currentRound++;
 
@@ -650,7 +619,7 @@ wss.on("connection", (socket) => {
 
     // Get free riddle (practice mode)
     if (type === "freeRiddle") {
-      const riddle = await getPollinationsRiddle();
+      const riddle = getLocalRiddle();
       socket.send(JSON.stringify({ 
         type: "riddle", 
         payload: { question: riddle.question } 
