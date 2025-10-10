@@ -10,7 +10,7 @@ export default function Navbar() {
         </a>
         <nav className="flex items-center gap-4">
           <a
-            href="https://github.com/_creation22"
+            href="https://github.com/creation22"
             target="_blank"
             rel="noreferrer"
             className="text-white hover:opacity-80 transition-opacity"
@@ -23,7 +23,7 @@ export default function Navbar() {
             </svg>
           </a>
           <a
-            href="https://twitter.com/creation22"
+            href="https://twitter.com/_creation22"
             target="_blank"
             rel="noreferrer"
             className="text-white hover:opacity-80 transition-opacity"
