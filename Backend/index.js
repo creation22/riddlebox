@@ -290,22 +290,21 @@ wss.on("connection", (socket) => {
     // DISCONNECT HANDLER
     // =======================================================
     socket.on("close", () => {
-        console.log(`Socket disconnected: ${socket.userId || 'unknown'}`);
         const roomId = socket.roomId;
-        const userId = socket.userId;
-
-        if (roomId && rooms.has(roomId) && userId) {
-            const room = rooms.get(roomId);
-            const remainingPlayers = room.removePlayer(userId);
-
-            // Room Cleanup: Delete the room if it's empty
-            if (remainingPlayers === 0) {
-                room.clearRoundTimer();
-                rooms.delete(roomId);
-                console.log(`Room ${roomId} deleted (empty).`);
-            }
+        if (!roomId || !rooms[roomId]) return;
+      
+        const room = rooms[roomId];
+        room.players = room.players.filter(p => p.userId !== socket.userId);
+      
+        // only delete if room is empty
+        if (room.players.length === 0) {
+          delete rooms[roomId];
+          console.log(`🗑️ Room ${roomId} deleted (empty)`);
+        } else {
+          console.log(`👋 ${socket.userId} left room ${roomId}`);
         }
-    });
+      });
+      
 
 
     // =======================================================

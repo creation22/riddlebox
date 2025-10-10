@@ -4,32 +4,45 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [players, setPlayers] = useState([]);
-  const [socket, setSocket] = useState(null);
   const socketRef = useRef(null);
+  const onStartGameRef = useRef(onStartGame);
+
+  // Keep callback ref updated without retriggering useEffect
+  useEffect(() => {
+    onStartGameRef.current = onStartGame;
+  }, [onStartGame]);
 
   useEffect(() => {
+    // prevent double connection
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      console.warn('Socket already open, skipping new connection');
+      return;
+    }
+
     const ws = new WebSocket('ws://localhost:8000');
     socketRef.current = ws;
-    setSocket(ws);
 
     ws.onopen = () => {
-      console.log('Connected to lobby');
-      if (isCreator) {
-        ws.send(JSON.stringify({
-          type: 'create',
-          payload: { roomId, userId: username, name: username }
-        }));
-      } else {
-        ws.send(JSON.stringify({
-          type: 'join',
-          payload: { roomId, userId: username, name: username }
-        }));
-      }
+      console.log('✅ Connected to lobby');
+      const payload = { roomId, userId: username, name: username };
+      ws.send(JSON.stringify({
+        type: isCreator ? 'create' : 'join',
+        payload,
+      }));
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (e) {
+        console.warn('❌ Invalid JSON from server:', event.data);
+        return;
+      }
 
+      console.log('📩 Received:', data.type || data.status, data);
+
+      // handle error
       if (data.status === 'error' && /Room not found/i.test(data.message || '')) {
         setMessages(prev => [...prev, 'Room not found. Please check the Room ID.']);
         return;
@@ -45,34 +58,48 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
 
       if (data.type === 'system') {
         setMessages(prev => [...prev, data.message]);
-        // Update player list when someone joins
         if (data.message.includes('joined the room')) {
-          // Request updated player list
           ws.send(JSON.stringify({ type: 'getScore' }));
         }
       }
 
       if (data.type === 'scoreboard') {
-        setPlayers(Object.keys(data.payload).map(name => ({ name, score: data.payload[name] })));
+        setPlayers(Object.keys(data.payload).map(name => ({
+          name,
+          score: data.payload[name],
+        })));
       }
 
       if (data.type === 'riddle') {
-        // Game started, transition to game view
-        onStartGame();
+        console.log('🎮 Starting game...');
+        onStartGameRef.current?.(); // safe call without re-running effect
       }
     };
 
-    ws.onclose = () => console.log('Disconnected from lobby');
+    ws.onerror = (err) => {
+      console.error('⚠️ WebSocket error:', err);
+    };
 
-    return () => ws.close();
-  }, [roomId, username, isCreator, onStartGame]);
+    ws.onclose = (ev) => {
+      console.log(`❌ Disconnected from lobby (code: ${ev.code}, reason: ${ev.reason || 'none'})`);
+    };
+
+    return () => {
+      console.log('🔌 Closing WebSocket...');
+      try {
+        ws.close();
+      } catch (e) {
+        console.error('Error closing socket:', e);
+      }
+    };
+  }, [roomId, username, isCreator]); // removed onStartGame
 
   const sendChat = () => {
     if (!chatInput.trim()) return;
     setMessages(prev => [...prev, `You: ${chatInput}`]);
-    socketRef.current?.send(JSON.stringify({ 
-      type: 'chat', 
-      payload: { message: chatInput } 
+    socketRef.current?.send(JSON.stringify({
+      type: 'chat',
+      payload: { message: chatInput },
     }));
     setChatInput('');
   };
@@ -86,7 +113,7 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <button 
+          <button
             onClick={onBackToWelcome}
             className="mb-4 text-slate-400 hover:text-white transition-colors"
           >
@@ -94,7 +121,9 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
           </button>
           <div className="bg-white text-black border-4 border-black rounded-none shadow-[10px_10px_0_0_#000] p-4">
             <h1 className="text-3xl font-extrabold">Room: {roomId}</h1>
-            <p className="text-sm">You are <span className="font-bold">{username}</span> {isCreator && '(Host)'}</p>
+            <p className="text-sm">
+              You are <span className="font-bold">{username}</span> {isCreator && '(Host)'}
+            </p>
           </div>
         </div>
 
@@ -105,7 +134,10 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
               <h3 className="text-xl font-extrabold mb-3">Players ({players.length})</h3>
               <div className="space-y-2">
                 {players.map((player, index) => (
-                  <div key={index} className="flex justify-between items-center px-3 py-2 bg-neutral-100 border-4 border-black rounded-none shadow-[4px_4px_0_0_#000]">
+                  <div
+                    key={index}
+                    className="flex justify-between items-center px-3 py-2 bg-neutral-100 border-4 border-black rounded-none shadow-[4px_4px_0_0_#000]"
+                  >
                     <span className="font-medium">{player.name}</span>
                     <span className="text-sm text-gray-600">Ready</span>
                   </div>
@@ -117,7 +149,7 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
             {isCreator && (
               <div className="bg-white text-black border-4 border-black rounded-none shadow-[10px_10px_0_0_#000] p-4">
                 <h4 className="text-lg font-extrabold mb-3">Host Controls</h4>
-                <button 
+                <button
                   onClick={startGame}
                   className="w-full px-4 py-3 bg-lime-200 border-4 border-black font-bold rounded-none shadow-[6px_6px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000] transition-all"
                 >
@@ -134,7 +166,10 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
               <h3 className="text-xl font-extrabold mb-4">Lobby Chat</h3>
               <div className="h-64 sm:h-[50vh] overflow-y-auto space-y-2 mb-4 pr-2">
                 {messages.map((message, index) => (
-                  <div key={index} className="px-3 py-2 bg-neutral-100 border-4 border-black rounded-none shadow-[4px_4px_0_0_#000]">
+                  <div
+                    key={index}
+                    className="px-3 py-2 bg-neutral-100 border-4 border-black rounded-none shadow-[4px_4px_0_0_#000]"
+                  >
                     {message}
                   </div>
                 ))}
@@ -147,7 +182,7 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
                   placeholder="Type a message..."
                   className="flex-1 px-4 py-3 bg-yellow-200 placeholder-black/60 border-4 border-black rounded-none shadow-[6px_6px_0_0_#000] focus:outline-none"
                 />
-                <button 
+                <button
                   onClick={sendChat}
                   className="px-4 py-3 bg-black text-white border-4 border-black rounded-none font-bold shadow-[6px_6px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000] transition-all"
                 >
