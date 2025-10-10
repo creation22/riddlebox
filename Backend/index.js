@@ -24,11 +24,6 @@ function sanitizeString(str, maxLength = 500) {
   return String(str || '').trim().slice(0, maxLength);
 }
 
-async function ensureFetch() {
-  if (typeof fetch !== 'undefined') return fetch;
-  const mod = await import('node-fetch');
-  return mod.default;
-}
 
 
   // =======================================================
@@ -159,9 +154,10 @@ class Room {
       return false;
     }
 
+    // Allow reconnection - remove existing player first if they exist
     if (this.players.has(userId)) {
-      console.warn(`User ${userId} attempting to re-join room ${this.roomId}`);
-      return false;
+      console.log(`User ${userId} reconnecting to room ${this.roomId}`);
+      this.players.delete(userId);
     }
 
     const player = new Player(socket, userId, name);
@@ -188,6 +184,16 @@ class Room {
         type: "scoreboard",
         payload: this.getScoreboard()
       });
+    } else if (this.isGameActive && !this.currentRiddle) {
+      // Game is active but no current riddle - this might be a state issue
+      console.log("⚠️ Game is active but no current riddle - resetting game state");
+      this.broadcast({ 
+        type: "system", 
+        message: "Game state reset due to player reconnection. Host can restart the game." 
+      });
+      this.isGameActive = false;
+      this.currentRound = 0;
+      this.currentRiddle = null;
     }
     
     return true;
@@ -257,6 +263,7 @@ class Room {
     this.currentRiddle = riddle;
     this.currentRound++;
 
+    console.log(`🎯 Sending riddle ${this.currentRound}:`, riddle.question);
     this.broadcast({
       type: "riddle",
       payload: {
@@ -359,7 +366,26 @@ class Room {
     });
     
     this.updateActivity();
+    
+    // Send first riddle immediately
+    console.log("🎮 Game started, sending first riddle...");
     this.sendNextRiddle();
+    
+    // Force refresh all players' game state
+    setTimeout(() => {
+      this.broadcast({ 
+        type: "system", 
+        message: "🔄 Syncing game state..." 
+      });
+      this.broadcast({ 
+        type: "players", 
+        payload: this.getPublicPlayerList() 
+      });
+      this.broadcast({ 
+        type: "scoreboard", 
+        payload: this.getScoreboard() 
+      });
+    }, 1000);
   }
 
   endGame() {
@@ -383,6 +409,7 @@ class Room {
     this.currentRiddle = null;
     this.updateActivity();
   }
+
 
   cleanup() {
     this.clearRoundTimer();
@@ -601,6 +628,7 @@ wss.on("connection", (socket) => {
       room.endGame();
     }
 
+
     // Get players list
     if (type === "getPlayers") {
       socket.send(JSON.stringify({ 
@@ -624,6 +652,31 @@ wss.on("connection", (socket) => {
         type: "riddle", 
         payload: { question: riddle.question } 
       }));
+    }
+
+    // Force refresh game state
+    if (type === "refreshState") {
+      console.log("🔄 Force refreshing game state for room", room.roomId);
+      socket.send(JSON.stringify({ 
+        type: "players", 
+        payload: room.getPublicPlayerList() 
+      }));
+      socket.send(JSON.stringify({ 
+        type: "scoreboard", 
+        payload: room.getScoreboard() 
+      }));
+      if (room.isGameActive && room.currentRiddle) {
+        const timeRemaining = Math.max(0, room.ROUND_DURATION_MS - (Date.now() - room.roundStartTime));
+        socket.send(JSON.stringify({
+          type: "riddle",
+          payload: {
+            question: room.currentRiddle.question,
+            round: room.currentRound,
+            totalRounds: room.totalRounds,
+            durationMs: timeRemaining
+          }
+        }));
+      }
     }
   });
 });
