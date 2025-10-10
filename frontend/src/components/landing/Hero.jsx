@@ -130,3 +130,5 @@ export default function Hero({ onGetStarted, onJoin }) {
     </section>
   );
 }
+
+
