@@ -1,134 +1,85 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
+import { initSocket, addSocketListener, sendMessage } from "./socket";
 
 export default function LobbyView({ username, roomId, isCreator, onStartGame, onBackToWelcome }) {
   const [messages, setMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
+  const [chatInput, setChatInput] = useState("");
   const [players, setPlayers] = useState([]);
-  const socketRef = useRef(null);
   const onStartGameRef = useRef(onStartGame);
 
-  // Keep callback ref updated without retriggering useEffect
   useEffect(() => {
     onStartGameRef.current = onStartGame;
   }, [onStartGame]);
 
   useEffect(() => {
-    // prevent double connection
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      console.warn('Socket already open, skipping new connection');
-      return;
-    }
+    const ws = initSocket();
 
-    const ws = new WebSocket('ws://localhost:8000');
-    socketRef.current = ws;
-
-    ws.onopen = () => {
-      console.log('✅ Connected to lobby');
-      const payload = { roomId, userId: username, name: username };
-      ws.send(JSON.stringify({
-        type: isCreator ? 'create' : 'join',
-        payload,
-      }));
-    };
-
-    ws.onmessage = (event) => {
-      let data;
-      try {
-        data = JSON.parse(event.data);
-      } catch (e) {
-        console.warn('❌ Invalid JSON from server:', event.data);
+    const removeListener = addSocketListener((data) => {
+      if (data.status === "error") {
+        setMessages((prev) => [...prev, `❌ ${data.message}`]);
         return;
       }
 
-      console.log('📩 Received:', data.type || data.status, data);
-
-      // handle error
-      if (data.status === 'error' && /Room not found/i.test(data.message || '')) {
-        setMessages(prev => [...prev, 'Room not found. Please check the Room ID.']);
-        return;
-      }
-
-      if (data.type === 'chat') {
+      if (data.type === "chat") {
         const from = data.payload?.name;
         const msg = data.payload?.message;
-        if (!from || !msg) return;
-        if (from === username) return; // skip echo
-        setMessages(prev => [...prev, `${from}: ${msg}`]);
+        if (!from || !msg || from === username) return;
+        setMessages((prev) => [...prev, `${from}: ${msg}`]);
       }
 
-      if (data.type === 'system') {
-        setMessages(prev => [...prev, data.message]);
-        if (data.message.includes('joined the room')) {
-          ws.send(JSON.stringify({ type: 'getScore' }));
-        }
+      if (data.type === "system") {
+        setMessages((prev) => [...prev, data.message]);
       }
 
-      if (data.type === 'scoreboard') {
-        setPlayers(Object.keys(data.payload).map(name => ({
-          name,
-          score: data.payload[name],
-        })));
+      if (data.type === "players") {
+        const playerList = data.payload || [];
+        setPlayers(playerList.map((p) => ({ name: p.name, score: p.score || 0 })));
       }
 
-      if (data.type === 'riddle') {
-        console.log('🎮 Starting game...');
-        onStartGameRef.current?.(); // safe call without re-running effect
+      if (data.type === "scoreboard") {
+        const playerList = Object.keys(data.payload).map((name) => ({ name, score: data.payload[name] }));
+        setPlayers(playerList);
       }
+
+      if (data.type === "riddle") {
+        console.log("🎮 Starting game...");
+        onStartGameRef.current?.();
+      }
+    });
+
+    ws.onopen = () => {
+      console.log("✅ Connected to lobby");
+      sendMessage(isCreator ? "create" : "join", { roomId, userId: username, name: username });
     };
 
-    ws.onerror = (err) => {
-      console.error('⚠️ WebSocket error:', err);
-    };
-
-    ws.onclose = (ev) => {
-      console.log(`❌ Disconnected from lobby (code: ${ev.code}, reason: ${ev.reason || 'none'})`);
-    };
-
-    return () => {
-      console.log('🔌 Closing WebSocket...');
-      try {
-        ws.close();
-      } catch (e) {
-        console.error('Error closing socket:', e);
-      }
-    };
-  }, [roomId, username, isCreator]); // removed onStartGame
+    return () => removeListener();
+  }, [roomId, username, isCreator]);
 
   const sendChat = () => {
     if (!chatInput.trim()) return;
-    setMessages(prev => [...prev, `You: ${chatInput}`]);
-    socketRef.current?.send(JSON.stringify({
-      type: 'chat',
-      payload: { message: chatInput },
-    }));
-    setChatInput('');
+    setMessages((prev) => [...prev, `You: ${chatInput}`]);
+    sendMessage("chat", { message: chatInput, name: username });
+    setChatInput("");
   };
 
-  const startGame = () => {
-    socketRef.current?.send(JSON.stringify({ type: 'startGame' }));
-  };
+  const startGame = () => sendMessage("startGame", { roomId });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-amber-900/50 to-slate-950 text-white p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="mb-6">
-          <button
-            onClick={onBackToWelcome}
-            className="mb-4 text-slate-400 hover:text-white transition-colors"
-          >
+          <button onClick={onBackToWelcome} className="mb-4 text-slate-400 hover:text-white transition-colors">
             ← Back to Welcome
           </button>
           <div className="bg-white text-black border-4 border-black rounded-none shadow-[10px_10px_0_0_#000] p-4">
             <h1 className="text-3xl font-extrabold">Room: {roomId}</h1>
             <p className="text-sm">
-              You are <span className="font-bold">{username}</span> {isCreator && '(Host)'}
+              You are <span className="font-bold">{username}</span> {isCreator && "(Host)"}
             </p>
           </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left: Player List */}
           <div className="lg:col-span-1">
             <div className="bg-white text-black border-4 border-black rounded-none shadow-[10px_10px_0_0_#000] p-4 mb-4">
               <h3 className="text-xl font-extrabold mb-3">Players ({players.length})</h3>
@@ -145,22 +96,19 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
               </div>
             </div>
 
-            {/* Game Controls (Host only) */}
             {isCreator && (
               <div className="bg-white text-black border-4 border-black rounded-none shadow-[10px_10px_0_0_#000] p-4">
                 <h4 className="text-lg font-extrabold mb-3">Host Controls</h4>
                 <button
                   onClick={startGame}
-                  className="w-full px-4 py-3 bg-lime-200 border-4 border-black font-bold rounded-none shadow-[6px_6px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000] transition-all"
+                  className="w-full px-4 py-3 bg-lime-200 border-4 border-black font-bold rounded-none shadow-[6px_6px_0_0_#000]"
                 >
                   Start Game
                 </button>
-                <p className="text-xs text-gray-600 mt-2">Or type "startgame" in chat</p>
               </div>
             )}
           </div>
 
-          {/* Right: Chat */}
           <div className="lg:col-span-2">
             <div className="bg-white text-black border-4 border-black rounded-none shadow-[10px_10px_0_0_#000] p-6">
               <h3 className="text-xl font-extrabold mb-4">Lobby Chat</h3>
@@ -178,13 +126,13 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
                 <input
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendChat()}
+                  onKeyPress={(e) => e.key === "Enter" && sendChat()}
                   placeholder="Type a message..."
                   className="flex-1 px-4 py-3 bg-yellow-200 placeholder-black/60 border-4 border-black rounded-none shadow-[6px_6px_0_0_#000] focus:outline-none"
                 />
                 <button
                   onClick={sendChat}
-                  className="px-4 py-3 bg-black text-white border-4 border-black rounded-none font-bold shadow-[6px_6px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000] transition-all"
+                  className="px-4 py-3 bg-black text-white border-4 border-black rounded-none font-bold shadow-[6px_6px_0_0_#000]"
                 >
                   Send
                 </button>
