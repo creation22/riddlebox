@@ -18,6 +18,14 @@ export default function RiddleGame({ username, roomId, isCreator, onGameOver, on
     onGameOverRef.current = onGameOver;
   }, [onGameOver]);
 
+  // Debug riddle state changes
+  useEffect(() => {
+    console.log("🎯 Riddle state changed:", { riddle, isGameActive, countdown });
+    if (riddle && riddle.question) {
+      console.log("🎯 Riddle question:", riddle.question);
+    }
+  }, [riddle, isGameActive, countdown]);
+
   // Auto-scroll messages to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,19 +72,23 @@ export default function RiddleGame({ username, roomId, isCreator, onGameOver, on
 
       // Handle new riddle
       if (data.type === "riddle") {
+        console.log("🎯 Received riddle:", data.payload);
         setRiddle(data.payload);
         const duration = data.payload?.durationMs || 60000;
         setCountdown(Math.floor(duration / 1000));
         setIsGameActive(Boolean(data.payload?.round));
+        console.log("🎯 Riddle state updated:", data.payload);
       }
 
       // Handle game state (for late joiners)
       if (data.type === "gameState") {
+        console.log("🎯 Received game state:", data.payload);
         setRiddle(data.payload);
         const timeRemaining = data.payload?.timeRemainingMs || 60000;
         setCountdown(Math.floor(timeRemaining / 1000));
         setIsGameActive(true);
         setMessages((prev) => [...prev, "⚡ Joined game in progress"]);
+        console.log("🎯 Game state updated:", data.payload);
       }
 
       // Handle riddle results
@@ -197,15 +209,7 @@ export default function RiddleGame({ username, roomId, isCreator, onGameOver, on
   };
 
   // Game control functions
-  const getFreeRiddle = () => {
-    sendMessage("freeRiddle");
-    setMessages((prev) => [...prev, "🎲 Requesting practice riddle..."]);
-  };
 
-  const startGame = () => {
-    sendMessage("startGame", { roomId });
-    setMessages((prev) => [...prev, "🎮 Starting game..."]);
-  };
 
   const skipRiddle = () => {
     if (!riddle) {
@@ -266,29 +270,7 @@ export default function RiddleGame({ username, roomId, isCreator, onGameOver, on
           <div className="bg-white text-black border-4 border-black rounded-none shadow-[10px_10px_0_0_#000] p-4 space-y-2">
             <h3 className="text-lg font-extrabold mb-3">Game Controls</h3>
             
-            <button
-              onClick={getFreeRiddle}
-              disabled={isGameActive}
-              className={`w-full px-4 py-2 border-4 border-black font-bold rounded-none shadow-[6px_6px_0_0_#000] transition-all ${
-                isGameActive 
-                  ? "bg-gray-300 cursor-not-allowed" 
-                  : "bg-yellow-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000]"
-              }`}
-            >
-              🎲 Practice Riddle
-            </button>
 
-            <button
-              disabled={!isCreator || isGameActive}
-              onClick={startGame}
-              className={`w-full px-4 py-2 border-4 border-black font-bold rounded-none shadow-[6px_6px_0_0_#000] transition-all ${
-                isCreator && !isGameActive
-                  ? "bg-lime-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000]" 
-                  : "bg-gray-300 cursor-not-allowed"
-              }`}
-            >
-              🎮 Start Game
-            </button>
 
             <button
               disabled={!isCreator || !isGameActive}
@@ -320,6 +302,22 @@ export default function RiddleGame({ username, roomId, isCreator, onGameOver, on
             >
               🛑 End Game
             </button>
+
+            <button
+              disabled={!isCreator}
+              onClick={() => {
+                setMessages((prev) => [...prev, "🔄 Force refreshing game state..."]);
+                sendMessage("refreshState");
+              }}
+              className={`w-full px-4 py-2 border-4 border-black font-bold rounded-none shadow-[6px_6px_0_0_#000] transition-all ${
+                isCreator
+                  ? "bg-blue-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000]" 
+                  : "bg-gray-300 cursor-not-allowed"
+              }`}
+            >
+              🔄 Refresh State
+            </button>
+
           </div>
 
           {/* Scoreboard */}
@@ -364,8 +362,11 @@ export default function RiddleGame({ username, roomId, isCreator, onGameOver, on
           <div className="bg-white text-black border-4 border-black rounded-none shadow-[10px_10px_0_0_#000] p-6 min-h-32">
             <h3 className="text-xl font-extrabold mb-3 flex items-center gap-2">
               <span>🧩</span> Current Riddle
+              <span className="text-xs text-gray-500 ml-2">
+                (Debug: {riddle ? 'Has riddle' : 'No riddle'})
+              </span>
             </h3>
-            {riddle ? (
+            {riddle && riddle.question ? (
               <div className="space-y-3">
                 <div className="text-lg font-semibold leading-relaxed">
                   {riddle.question}
@@ -453,12 +454,12 @@ export default function RiddleGame({ username, roomId, isCreator, onGameOver, on
                     : "Type a message..."
                 }
                 maxLength={500}
-                disabled={connectionStatus !== "connected"}
+                disabled={false}
                 className="flex-1 px-4 py-3 bg-yellow-200 placeholder-black/60 border-4 border-black rounded-none shadow-[6px_6px_0_0_#000] focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 onClick={isGameActive && riddle ? sendAnswer : sendChat}
-                disabled={!chatInput.trim() || connectionStatus !== "connected"}
+                disabled={!chatInput.trim()}
                 className="px-6 py-3 bg-black text-white border-4 border-black rounded-none font-bold shadow-[6px_6px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isGameActive && riddle ? "📤 Submit" : "💬 Send"}

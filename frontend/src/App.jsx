@@ -42,6 +42,8 @@ export default function App() {
   const handlePlayAgain = () => {
     setCurrentView('lobby');
     setGameData(null);
+    // Reset game state by reloading the page to reconnect to lobby
+    window.location.reload();
   };
 
   return (

@@ -8,6 +8,7 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
   const [connectionStatus, setConnectionStatus] = useState("connecting");
   const [userId, setUserId] = useState(null);
   const [canStartGame, setCanStartGame] = useState(false);
+  const [gameStartCountdown, setGameStartCountdown] = useState(0);
   
   const messagesEndRef = useRef(null);
   const onStartGameRef = useRef(onStartGame);
@@ -159,8 +160,20 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
       return;
     }
     
-    setMessages((prev) => [...prev, "🎮 Starting game..."]);
-    sendMessage("startGame", { roomId });
+    setMessages((prev) => [...prev, "🎮 Starting game in 3 seconds..."]);
+    setGameStartCountdown(3);
+    
+    // Countdown timer
+    const countdownInterval = setInterval(() => {
+      setGameStartCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          sendMessage("startGame", { roomId });
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   return (
@@ -247,14 +260,14 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
                 
                 <button
                   onClick={startGame}
-                  disabled={!canStartGame}
+                  disabled={!canStartGame || gameStartCountdown > 0}
                   className={`w-full px-4 py-3 border-4 border-black font-bold rounded-none shadow-[6px_6px_0_0_#000] transition-all ${
-                    canStartGame
+                    canStartGame && gameStartCountdown === 0
                       ? "bg-lime-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000]"
                       : "bg-gray-300 cursor-not-allowed opacity-60"
                   }`}
                 >
-                  {canStartGame ? "🎮 Start Game" : "⏳ Waiting..."}
+                  {gameStartCountdown > 0 ? `⏰ Starting in ${gameStartCountdown}...` : canStartGame ? "🎮 Go to Room" : "⏳ Waiting..."}
                 </button>
                 
                 {!canStartGame && connectionStatus === "connected" && (
