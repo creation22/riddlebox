@@ -9,7 +9,9 @@ export function initSocket() {
     return socket;
   }
 
-  socket = new WebSocket("ws://localhost:8000");
+  // socket = new WebSocket("ws://localhost:8000");
+  socket = new WebSocket("wss://riddlebox.onrender.com");
+
 
   socket.onopen = () => {
     console.log("✅ Connected to WebSocket server");
