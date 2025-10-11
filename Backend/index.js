@@ -424,9 +424,11 @@ class Room {
 // =======================================================
 
 const PORT = process.env.PORT || 8000;
+const HOST = '0.0.0.0';  // 🔹 Add this
+
+const wss = new WebSocketServer({ port: PORT, host: HOST });
 const rooms = new Map();
 
-const wss = new WebSocketServer({ port: PORT });
 
 wss.on("connection", (socket) => {
   console.log("🔌 Client connected");
