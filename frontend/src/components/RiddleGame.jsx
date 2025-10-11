@@ -134,13 +134,11 @@ export default function RiddleGame({ username, roomId, isCreator, onGameOver, on
       }
     });
 
-    ws.onopen = () => {
-      console.log("✅ Connected to game server");
+    // refetch state on page mount
+    if(ws.readyState === WebSocket.OPEN){  
+       sendMessage("refreshState", { roomId });
       setConnectionStatus("connected");
-      // Backend will generate userId, just send join request
-      sendMessage("join", { roomId, name: username });
-    };
-
+  }
     ws.onerror = (err) => {
       console.error("❌ WebSocket error:", err);
       setConnectionStatus("error");
