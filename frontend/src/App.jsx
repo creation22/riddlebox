@@ -4,7 +4,7 @@ import JoinRoom from './components/JoinRoom';
 import LobbyView from './components/LobbyView';
 import RiddleGame from './components/RiddleGame';
 import GameOverView from './components/GameOverView';
-
+import { Analytics } from "@vercel/analytics/react"
 export default function App() {
   const [currentView, setCurrentView] = useState('landing');
   const [userData, setUserData] = useState(null);
@@ -48,6 +48,7 @@ export default function App() {
 
   return (
     <>
+    <Analytics/>
       {currentView === 'landing' && (
         <LandingPage onGetStarted={handleGetStarted} onJoin={handleJoin} />
       )}
