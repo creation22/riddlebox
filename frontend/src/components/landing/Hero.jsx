@@ -159,7 +159,7 @@ export default function Hero({ onGetStarted, onJoin }) {
               {/* Main card */}
               <div className="relative bg-white border-[8px] border-black shadow-[12px_12px_0_0_#000] p-2 rotate-[2deg] hover:rotate-0 transition-transform duration-500 group">
                 <img 
-                  src="https://plus.unsplash.com/premium_vector-1743985813494-e1cf9bb3c0bf?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDZ8fHxlbnwwfHx8fHw%3D&auto=format&fit=crop&q=60&w=600"
+                  src="https://plus.unsplash.com/premium_vector-1743985813494-e1cf9bb3c0bf?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDZ8fHxlbnwwfHx8fHw%3D&auto=format&fit=crop&q=60&w=600" 
                   alt="Abstract colorful brain puzzle"
                   className="w-full aspect-[4/3] object-cover border-[4px] border-black group-hover:scale-105 transition-transform duration-500"
                 />
@@ -204,7 +204,7 @@ export default function Hero({ onGetStarted, onJoin }) {
         </div>
 
         {/* Add custom animations */}
-        <style jsx>{`
+        <style>{`
           @keyframes float-slow {
             0%, 100% { transform: translateY(0) rotate(45deg); }
             50% { transform: translateY(-10px) rotate(45deg); }
