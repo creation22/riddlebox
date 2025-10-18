@@ -502,7 +502,7 @@ wss.on("connection", (socket) => {
       if (socket.roomId) {
         socket.send(JSON.stringify({ 
           status: "error", 
-          message: `You are already in room ${socket.roomId}.` 
+          // message: `You are already in room ${socket.roomId}.` 
         }));
         return;
       }
