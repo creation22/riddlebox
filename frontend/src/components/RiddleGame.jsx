@@ -360,9 +360,9 @@ export default function RiddleGame({ username, roomId, isCreator, onGameOver, on
           <div className="bg-white text-black border-4 border-black rounded-none shadow-[10px_10px_0_0_#000] p-6 min-h-32">
             <h3 className="text-xl font-extrabold mb-3 flex items-center gap-2">
               <span>🧩</span> Current Riddle
-              <span className="text-xs text-gray-500 ml-2">
+              {/* <span className="text-xs text-gray-500 ml-2">
                 (Debug: {riddle ? 'Has riddle' : 'No riddle'})
-              </span>
+              </span> */}
             </h3>
             {riddle && riddle.question ? (
               <div className="space-y-3">
