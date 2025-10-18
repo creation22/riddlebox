@@ -269,7 +269,7 @@ export default function Hero({ onGetStarted, onJoin }) {
           {/* Bottom bar */}
           <div className="border-t-2 border-gray-800 mt-3 pt-3 flex flex-col sm:flex-row justify-between items-center gap-1">
             <p className="text-gray-500 text-xs font-medium">
-              © 2024 Riddle Box. All rights reserved. Made with ❤️ for puzzle lovers
+              © 2025 Riddle Box. All rights reserved. Made with ❤️ for puzzle lovers
             </p>
             <div className="flex gap-3">
               <button className="text-gray-500 hover:text-white text-xs font-medium transition-colors">
