@@ -53,17 +53,17 @@ export default function GameOverView({ finalScores, onPlayAgain, onBackToLobby }
 
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button 
+            {/* <button 
               onClick={onBackToLobby}
               className="px-6 py-3 bg-white border-4 border-black font-bold rounded-none shadow-[6px_6px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000] transition-all"
             >
-              Back to Lobby
-            </button>
+              Play Again 
+            </button> */}
             <button 
               onClick={onPlayAgain}
               className="px-6 py-3 bg-amber-200 border-4 border-black font-bold rounded-none shadow-[6px_6px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[4px_4px_0_0_#000] transition-all"
             >
-              Play Again
+              End Game 
             </button>
           </div>
         </div>

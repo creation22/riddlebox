@@ -191,7 +191,18 @@ export default function LobbyView({ username, roomId, isCreator, onStartGame, on
           <div className="bg-white text-black border-4 border-black rounded-none shadow-[10px_10px_0_0_#000] p-4">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <h1 className="text-3xl font-extrabold">Room: {roomId}</h1>
+              <h1 className="text-3xl font-extrabold flex items-center gap-2">
+  Room: <span className="font-mono">{roomId}</span>
+  <button
+    onClick={() => {
+      navigator.clipboard.writeText(roomId);
+    }}
+    className="text-sm px-2 py-1 border-2 border-black bg-yellow-200 hover:bg-yellow-300 font-bold shadow-[2px_2px_0_0_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0_0_#000] transition-all"
+  >
+    📋 Copy
+  </button>
+</h1>
+
                 <p className="text-sm mt-1">
                   You are <span className="font-bold">{username}</span>
                   {isCreator && (
